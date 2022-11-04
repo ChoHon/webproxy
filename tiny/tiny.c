@@ -1,7 +1,7 @@
 #include "csapp.h"
 
 void doit(int fd);
-void read_requesthdrs(rio_t *rp);
+void read_requesthdrs(int fd, rio_t *rp);
 int parse_uri(char *uri, char *filename, char *cgiargs);
 void serve_static(int fd, char *filename, int filesize);
 void get_filetype(char *filename, char *filetype);
@@ -56,7 +56,7 @@ void doit(int fd)
     return;
   }
 
-  read_requesthdrs(&rio);
+  read_requesthdrs(fd, &rio);
 
   // parse URI from GET request
   is_static = parse_uri(uri, filename, cgiargs);
@@ -115,7 +115,7 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
   Rio_writen(fd, body, strlen(body));
 }
 
-void read_requesthdrs(rio_t *rp)
+void read_requesthdrs(int fd, rio_t *rp)
 {
   char buf[MAXLINE];
 
@@ -205,7 +205,10 @@ void get_filetype(char *filename, char *filetype)
   else if (strstr(filename, ".png"))
     strcpy(filetype, "image/png");
   else if (strstr(filename, ".jpg"))
-    strcpy(filetype, "image/jpg");
+    strcpy(filetype, "image/jpeg");
+  // mp4 mime type 추가
+  else if (strstr(filename, ".mp4"))
+    strcpy(filetype, "video/mp4");
   else
     strcpy(filetype, "text/plain");
 }
