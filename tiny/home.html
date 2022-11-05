@@ -1,12 +1,25 @@
 <html>
-<head><title>test</title></head>
-<body> 
-<img align="middle" src="godzilla.gif">
-<!-- 추가한 동영상 -->
-<video width="960" height="540" controls>
-    <source src="sample.mp4" type="video/mp4">
-    blank
-</video>
-Dave O'Hallaron
+
+<head>
+    <title>test</title>
+</head>
+
+<body>
+    <img align="middle" src="godzilla.gif">
+    <!-- 추가한 동영상 -->
+    <video width="960" height="540" controls>
+        <source src="sample.mp4" type="video/mp4">
+        blank
+    </video>
+    Dave O'Hallaron
+    <hr>
+    <form action="/cgi-bin/adder" method="get">
+        <div>
+            <input type="text" name="num1"><br>
+            <input type="text" name="num2"><br>
+            <input type="submit" value="add" />
+        </div>
+    </form>
 </body>
+
 </html>
