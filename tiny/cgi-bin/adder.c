@@ -4,9 +4,10 @@
 /* $begin adder */
 #include "csapp.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
-  char *buf, *p;
+  char *buf, *p, *method;
+  method = getenv("REQUEST_METHOD");
   char arg1[MAXLINE], arg2[MAXLINE], content[MAXLINE];
   int n1 = 0, n2 = 0;
   /* Extract the two arguments */
@@ -30,6 +31,13 @@ int main(void)
   printf("Connection : close\r\n");
   printf("Content-length: %d\r\n", (int)strlen(content));
   printf("Content-type : text/html \r\n\r\n");
+
+  if (!strcasecmp(method, "HEAD"))
+  {
+    fflush(stdout);
+    exit(0);
+  }
+
   printf("%s", content);
   fflush(stdout);
   exit(0);

@@ -3,9 +3,9 @@
 void doit(int fd);
 void read_requesthdrs(int fd, rio_t *rp);
 int parse_uri(char *uri, char *filename, char *cgiargs);
-void serve_static(int fd, char *filename, int filesize);
+void serve_static(int fd, char *filename, int filesize, char *method);
 void get_filetype(char *filename, char *filetype);
-void serve_dynamic(int fd, char *filename, char *cgiargs);
+void serve_dynamic(int fd, char *filename, char *cgiargs, char *method);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 
 int main(int argc, char **argv)
@@ -39,6 +39,7 @@ int main(int argc, char **argv)
 void doit(int fd)
 {
   int is_static;
+  int is_HEAD;
   struct stat sbuf;
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
   char filename[MAXLINE], cgiargs[MAXLINE];
@@ -50,7 +51,12 @@ void doit(int fd)
   printf("Request headers:\n");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version);
-  if (strcasecmp(method, "GET"))
+
+  // strcasecmp(s1, s2) : s1, s2 대소문자를 구분하지 않고 비교
+  // s1 > s2 return 양수
+  // s1 = s2 return 0
+  // s1 < s2 return 음수
+  if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD"))
   {
     clienterror(fd, method, "501", "Not implemented", "Tiny does not implement this method");
     return;
@@ -76,7 +82,8 @@ void doit(int fd)
       clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read this file");
       return;
     }
-    serve_static(fd, filename, sbuf.st_size);
+
+    serve_static(fd, filename, sbuf.st_size, method);
   }
   // Serve Dynamic content
   else
@@ -87,7 +94,7 @@ void doit(int fd)
       clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't run the CGI program");
       return;
     }
-    serve_dynamic(fd, filename, cgiargs);
+    serve_dynamic(fd, filename, cgiargs, method);
   }
 }
 
@@ -170,7 +177,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
   }
 }
 
-void serve_static(int fd, char *filename, int filesize)
+void serve_static(int fd, char *filename, int filesize, char *method)
 {
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXLINE];
@@ -185,6 +192,9 @@ void serve_static(int fd, char *filename, int filesize)
 
   printf("Response headers:\n");
   printf("%s", buf);
+
+  if (!strcasecmp(method, "HEAD"))
+    return;
 
   // file 읽기
   srcfd = Open(filename, O_RDONLY, 0);
@@ -216,7 +226,7 @@ void get_filetype(char *filename, char *filetype)
     strcpy(filetype, "text/plain");
 }
 
-void serve_dynamic(int fd, char *filename, char *cgiargs)
+void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
 {
   char buf[MAXLINE], *emptylist[] = {NULL};
 
@@ -228,6 +238,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
   if (Fork() == 0)
   {
     setenv("QUERY_STRING", cgiargs, 1);
+    setenv("REQUEST_METHOD", method, 1);
     Dup2(fd, STDOUT_FILENO);
     Execve(filename, emptylist, environ);
   }
