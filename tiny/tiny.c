@@ -188,12 +188,15 @@ void serve_static(int fd, char *filename, int filesize)
 
   // file 읽기
   srcfd = Open(filename, O_RDONLY, 0);
-  srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+  // srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+  srcp = (char *)Malloc(filesize);
+  Rio_readn(srcfd, srcp, filesize);
   Close(srcfd);
 
   Rio_writen(fd, srcp, filesize);
   // srcp 할당 해제
-  Munmap(srcp, filesize);
+  // Munmap(srcp, filesize);
+  Free(srcp);
 }
 
 void get_filetype(char *filename, char *filetype)
