@@ -1,23 +1,30 @@
 #include "csapp.h"
+#include "sbuf.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
+#define NTHREADS 8
+#define SBUFSIZE 16
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3";
 
+void *thread(void *vargp);
 void proxy(int fd);
 void parse_url(char *url, char *hostname, char *uri, char *ip, char *port);
 void make_request_header(int fd, rio_t *rp, char *hostname, char *uri, char *headers);
 void read_response_headers(rio_t *rp, char *response_headers, char *response_content_length);
 
+sbuf_t sbuf;
+
 int main(int argc, char **argv)
 {
-  int listenfd, connfd;
+  int i, listenfd, connfd;
   char hostname[MAXLINE], port[MAXLINE];
   socklen_t clientlen;
   struct sockaddr_storage clientaddr;
+  pthread_t tid;
 
   // port를 입력하지 않았으면
   if (argc != 2)
@@ -28,12 +35,31 @@ int main(int argc, char **argv)
 
   // 입력 받은 port에 듣기 식별자 열기
   listenfd = Open_listenfd(argv[1]);
+
+  sbuf_init(&sbuf, SBUFSIZE);
+  for (i = 0; i < NTHREADS; i++)
+    Pthread_create(&tid, NULL, thread, NULL);
+
   while (1)
   {
     clientlen = sizeof(clientaddr);
     connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
     Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
     printf("=====Accepted connection from (%s, %s)=====\r\n\r\n", hostname, port);
+    sbuf_insert(&sbuf, connfd);
+    // proxy(connfd);
+    // Close(connfd);
+  }
+}
+
+void *thread(void *vargp)
+{
+  Pthread_detach(pthread_self());
+  while (1)
+  {
+    int connfd = sbuf_remove(&sbuf);
+
+    printf("=====START WORK : %d\n", pthread_self());
     proxy(connfd);
     Close(connfd);
     printf("=====Disconnect to Client=====\r\n\r\n");
