@@ -44,7 +44,7 @@ void proxy(int fd)
   int clientfd;
   char buf[MAXLINE], method[MAXLINE], url[MAXLINE], version[MAXLINE];
   char hostname[MAXLINE], ip[MAXLINE], port[MAXLINE], uri[MAXLINE], headers[MAXLINE];
-  char response[MAXLINE];
+  char response[MAX_OBJECT_SIZE];
   rio_t rio_p_c, rio_s_p;
 
   Rio_readinitb(&rio_p_c, fd);
@@ -66,7 +66,7 @@ void proxy(int fd)
   printf("=====Connect to Server=====\r\n\r\n");
 
   Rio_writen(clientfd, headers, strlen(headers));
-  Rio_readnb(&rio_s_p, response, MAXLINE);
+  Rio_readnb(&rio_s_p, response, MAX_OBJECT_SIZE);
   printf("=====Recieve response from Server=====\r\n\r\n");
 
   Close(clientfd);
@@ -142,7 +142,7 @@ void make_request_header(int fd, rio_t *rp, char *hostname, char *uri, char *hea
 }
 
 /*
-GET localhost:8000/cgi-bin/adder?num1=123&num2=456 HTTP/1.0
+GET localhost:8000/godzilla.jpg HTTP/1.0
 Host:52.78.57.212:5000
 User-Agent: "Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3"
 Connection: keep
