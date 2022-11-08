@@ -24,8 +24,6 @@ void sbuf_insert(sbuf_t *sp, int item)
 
     V(&sp->mutex); // 뮤텍스 언락
     V(&sp->items); // 아이템 하나 증가
-
-    printf("=====INSERT SUCCESS=====\n");
 }
 
 int sbuf_remove(sbuf_t *sp)
@@ -40,6 +38,5 @@ int sbuf_remove(sbuf_t *sp)
     V(&sp->mutex); // 뮤텍스 언락
     V(&sp->slots); // 빈칸 하나 증가
 
-    printf("=====REMOVE SUCCESS=====\n\n");
     return item;
 }

@@ -59,7 +59,7 @@ void *thread(void *vargp)
   {
     int connfd = sbuf_remove(&sbuf);
 
-    printf("=====START WORK : %d\n", pthread_self());
+    printf("=====START WORK : THREAD %d\n", pthread_self());
     proxy(connfd);
     Close(connfd);
     printf("=====Disconnect to Client=====\r\n\r\n");
