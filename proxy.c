@@ -10,6 +10,7 @@ static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64;
 void proxy(int fd);
 void parse_url(char *url, char *hostname, char *uri, char *ip, char *port);
 void make_request_header(int fd, rio_t *rp, char *hostname, char *uri, char *headers);
+void read_response_headers(rio_t *rp, char *response_headers, char *response_content_length);
 
 int main(int argc, char **argv)
 {
@@ -35,16 +36,17 @@ int main(int argc, char **argv)
     printf("=====Accepted connection from (%s, %s)=====\r\n\r\n", hostname, port);
     proxy(connfd);
     Close(connfd);
-    printf("=====Disconnect to Client=====\r\n");
+    printf("=====Disconnect to Client=====\r\n\r\n");
   }
 }
 
 void proxy(int fd)
 {
-  int clientfd;
+  int clientfd, filesize;
   char buf[MAXLINE], method[MAXLINE], url[MAXLINE], version[MAXLINE];
   char hostname[MAXLINE], ip[MAXLINE], port[MAXLINE], uri[MAXLINE], headers[MAXLINE];
-  char response[MAX_OBJECT_SIZE];
+  char response_headers[MAXLINE], response_content_length[MAXLINE];
+  char *srcp;
   rio_t rio_p_c, rio_s_p;
 
   Rio_readinitb(&rio_p_c, fd);
@@ -66,16 +68,28 @@ void proxy(int fd)
   printf("=====Connect to Server=====\r\n\r\n");
 
   Rio_writen(clientfd, headers, strlen(headers));
-  Rio_readnb(&rio_s_p, response, MAX_OBJECT_SIZE);
-  printf("=====Recieve response from Server=====\r\n\r\n");
+
+  read_response_headers(&rio_s_p, response_headers, response_content_length);
+  printf("=====Read Response Header=====\r\n\r\n");
+  printf("***Response Header from Server to Client:\r\n");
+  printf("%s\r\n\r\n", response_headers);
+
+  filesize = atoi(response_content_length);
+  srcp = (char *)Malloc(filesize);
+  Rio_readnb(&rio_s_p, srcp, filesize);
+  printf("=====Read Response Body=====\r\n\r\n");
+  printf("***Response Body from Server to Client:\r\n");
+  printf("%s\r\n\r\n", srcp);
+
+  Rio_writen(fd, response_headers, strlen(response_headers));
+  printf("=====Send Response Header to Client=====\r\n\r\n");
+  Rio_writen(fd, srcp, filesize);
+  printf("=====Send Response Body to Client=====\r\n\r\n");
+
+  Free(srcp);
 
   Close(clientfd);
   printf("=====Disconnect to Server=====\r\n\r\n");
-
-  printf("***Response from Server to Client:\r\n");
-  printf("%s\r\n\r\n", response);
-
-  Rio_writen(fd, response, strlen(response));
 }
 
 void parse_url(char *url, char *hostname, char *uri, char *ip, char *port)
@@ -113,6 +127,7 @@ void make_request_header(int fd, rio_t *rp, char *hostname, char *uri, char *hea
   char header_buf[MAXLINE], buf[MAXLINE], header_name[MAXLINE];
 
   sprintf(header_buf, "GET %s HTTP/1.0\r\n", uri);
+  sprintf(header_buf, "%sHost: %s\r\n", header_buf, hostname);
   sprintf(header_buf, "%s%s\r\n", header_buf, user_agent_hdr);
   sprintf(header_buf, "%sConnection: close\r\n", header_buf);
   sprintf(header_buf, "%sProxy-Connection: close\r\n", header_buf);
@@ -138,6 +153,39 @@ void make_request_header(int fd, rio_t *rp, char *hostname, char *uri, char *hea
 
   sprintf(header_buf, "%s\r\n", header_buf);
   strcpy(headers, header_buf);
+  return;
+}
+
+void read_response_headers(rio_t *rp, char *response_headers, char *response_content_length)
+{
+  char *header_data;
+  char buf[MAXLINE], header_name[MAXLINE], headers[MAXLINE];
+
+  Rio_readlineb(rp, buf, MAXLINE);
+  sprintf(headers, "%s", buf);
+
+  while (strcmp(buf, "\r\n"))
+  {
+    Rio_readlineb(rp, buf, MAXLINE);
+
+    header_data = index(buf, ':');
+    if (header_data)
+    {
+      strncpy(header_name, buf, (size_t)(header_data - buf));
+      header_name[(size_t)(header_data - buf)] = '\0';
+      header_data += 2;
+
+      if (!strcasecmp(header_name, "Content-length"))
+      {
+        strcpy(response_content_length, header_data);
+      }
+    }
+
+    sprintf(headers, "%s%s", headers, buf);
+  }
+
+  strcpy(response_headers, headers);
+
   return;
 }
 
