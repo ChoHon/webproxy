@@ -83,9 +83,11 @@ void parse_url(char *url, char *hostname, char *uri, char *ip, char *port)
   char *ptr, *start;
   char webserver_port[] = "80";
 
-  start = url + 7; // skip 'http://'
-  ptr = index(start, '/');
+  start = url;
+  if (strstr(url, "http://"))
+    start = url + 7; // skip 'http://'
 
+  ptr = index(start, '/');
   if (ptr)
   {
     strncpy(hostname, start, (size_t)(ptr - start));
@@ -140,7 +142,7 @@ void make_request_header(int fd, rio_t *rp, char *hostname, char *uri, char *hea
 }
 
 /*
-GET http://52.78.57.212:8000/cgi-bin/adder?num1=123&num2=456 HTTP/1.0
+GET localhost:8000/cgi-bin/adder?num1=123&num2=456 HTTP/1.0
 Host:52.78.57.212:5000
 User-Agent: "Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3"
 Connection: keep
