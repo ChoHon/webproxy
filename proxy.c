@@ -1,9 +1,7 @@
 #include "csapp.h"
 #include "sbuf.h"
+#include "cache.h"
 
-/* Recommended max cache and object sizes */
-#define MAX_CACHE_SIZE 1049000
-#define MAX_OBJECT_SIZE 102400
 #define NTHREADS 8
 #define SBUFSIZE 16
 
@@ -17,6 +15,7 @@ void make_request_header(int fd, rio_t *rp, char *hostname, char *uri, char *hea
 void read_response_headers(rio_t *rp, char *response_headers, char *response_content_length);
 
 sbuf_t sbuf;
+cache_header *ch;
 
 int main(int argc, char **argv)
 {
@@ -40,6 +39,8 @@ int main(int argc, char **argv)
   for (i = 0; i < NTHREADS; i++)
     Pthread_create(&tid, NULL, thread, NULL);
 
+  ch = cache_init();
+
   while (1)
   {
     clientlen = sizeof(clientaddr);
@@ -47,8 +48,6 @@ int main(int argc, char **argv)
     Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
     printf("=====Accepted connection from (%s, %s)=====\r\n\r\n", hostname, port);
     sbuf_insert(&sbuf, connfd);
-    // proxy(connfd);
-    // Close(connfd);
   }
 }
 
@@ -68,8 +67,10 @@ void *thread(void *vargp)
 
 void proxy(int fd)
 {
+  cache_t *cache;
+
   int clientfd, filesize;
-  char buf[MAXLINE], method[MAXLINE], url[MAXLINE], version[MAXLINE];
+  char buf[MAXLINE], method[MAXLINE], url[MAXLINE], origin_url[MAXLINE], version[MAXLINE];
   char hostname[MAXLINE], ip[MAXLINE], port[MAXLINE], uri[MAXLINE], headers[MAXLINE];
   char response_headers[MAXLINE], response_content_length[MAXLINE];
   char *srcp;
@@ -82,6 +83,18 @@ void proxy(int fd)
   printf("***Request headers from Client:\r\n");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, url, version);
+  strcpy(origin_url, url);
+
+  cache = cache_search(ch, origin_url);
+  if (cache != NULL)
+  {
+    printf("=====Proxy has Cache=====\r\n");
+    Rio_writen(fd, cache->response_header, strlen(cache->response_header));
+    Rio_writen(fd, cache->response_body, cache->filesize);
+    printf("=====Send Response=====\r\n\r\n");
+
+    return;
+  }
 
   parse_url(url, hostname, uri, ip, port);
   make_request_header(fd, &rio_p_c, hostname, uri, headers);
@@ -106,6 +119,13 @@ void proxy(int fd)
   printf("=====Read Response Body=====\r\n\r\n");
   printf("***Response Body from Server to Client:\r\n");
   printf("%s\r\n\r\n", srcp);
+
+  if ((cache = cache_search(ch, origin_url)) == NULL)
+  {
+    cache_append(ch, origin_url, response_headers, srcp, filesize);
+    cache_display(ch->head);
+    printf("=====Save Response to Cache=====\r\n\r\n");
+  }
 
   Rio_writen(fd, response_headers, strlen(response_headers));
   printf("=====Send Response Header to Client=====\r\n\r\n");
