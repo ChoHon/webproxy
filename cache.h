@@ -13,8 +13,8 @@ typedef struct
 typedef struct
 {
     cache_t *head;
-    int n;
     int current_cache_size;
+    sem_t w;
 } cache_header;
 
 cache_header *cache_init();

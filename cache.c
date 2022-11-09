@@ -1,24 +1,30 @@
+#include <semaphore.h>
 #include "cache.h"
 
 cache_header *cache_init()
 {
-    cache_header *c_header;
-    c_header = (cache_header *)Malloc(sizeof(cache_header));
+    cache_header *ch;
+    ch = (cache_header *)Malloc(sizeof(cache_header));
 
-    c_header->head = NULL;
-    c_header->n = 0;
-    c_header->current_cache_size = 0;
+    ch->head = NULL;
+    ch->current_cache_size = 0;
+    Sem_init(&ch->w, 0, 1);
+
+    return ch;
 }
 
 int cache_append(cache_header *ch, char *url, char *response_header, char *response_body, int filesize)
 {
     cache_t *last_cache = ch->head;
 
-    if (ch->current_cache_size + filesize > MAX_CACHE_SIZE)
-        return 0;
-
     if (filesize > MAX_OBJECT_SIZE)
+    {
+        printf("=====Response Body is bigger than MAX_OBJECT_SIZE=====\r\n\r\n");
         return 0;
+    }
+
+    while (ch->current_cache_size + filesize > MAX_CACHE_SIZE)
+        cache_delete_LRU(ch);
 
     cache_t *new_cache;
     new_cache = (cache_t *)Malloc(sizeof(cache_t));
@@ -31,20 +37,22 @@ int cache_append(cache_header *ch, char *url, char *response_header, char *respo
     new_cache->prev = NULL;
     new_cache->next = NULL;
 
-    ch->n++;
+    while (last_cache != NULL && last_cache->next != NULL)
+        last_cache = last_cache->next;
+
+    P(&ch->w);
     ch->current_cache_size += filesize;
 
     if (last_cache == NULL)
     {
         ch->head = new_cache;
-        return 1;
     }
-
-    while (last_cache->next != NULL)
-        last_cache = last_cache->next;
-
-    last_cache->next = new_cache;
-    new_cache->prev = last_cache;
+    else
+    {
+        last_cache->next = new_cache;
+        new_cache->prev = last_cache;
+    }
+    V(&ch->w);
 
     return 1;
 }
@@ -63,6 +71,7 @@ void cache_delete_LRU(cache_header *ch)
         lru_cache = lru_cache->next;
     }
 
+    P(&ch->w);
     if (prev_cache == NULL)
         ch->head = NULL;
     else
@@ -71,7 +80,7 @@ void cache_delete_LRU(cache_header *ch)
     ch->current_cache_size -= lru_cache->filesize;
 
     Free(lru_cache);
-    ch->n--;
+    V(&ch->w);
 }
 
 cache_t *cache_search(cache_header *ch, char *url)
