@@ -85,12 +85,15 @@ void proxy(int fd)
   strcpy(origin_url, url);
 
   cache = cache_search(ch, origin_url);
+
   if (cache != NULL)
   {
     printf("=====Proxy have Cached Data=====\r\n");
     Rio_writen(fd, cache->response_header, strlen(cache->response_header));
     Rio_writen(fd, cache->response_body, cache->filesize);
     printf("=====Send Response=====\r\n\r\n");
+    printf("***Saved Cache:\r\n");
+    cache_all_display(ch);
 
     return;
   }

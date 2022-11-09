@@ -3,18 +3,18 @@
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
 
-typedef struct
+typedef struct cache_t
 {
     char url[MAXLINE], response_header[MAXLINE], response_body[MAXLINE];
-    int filesize, count;
+    int filesize;
     struct cache_t *prev, *next;
 } cache_t;
 
 typedef struct
 {
     cache_t *head;
-    int current_cache_size;
-    sem_t w;
+    int current_cache_size, readcnt;
+    sem_t w, mutex;
 } cache_header;
 
 cache_header *cache_init();
