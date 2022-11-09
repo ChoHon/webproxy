@@ -22,3 +22,4 @@ int cache_append(cache_header *ch, char *url, char *response_header, char *respo
 void cache_delete_LRU(cache_header *ch);
 cache_t *cache_search(cache_header *ch, char *url);
 void cache_display(cache_t *cache);
+void cache_all_display(cache_header *ch);

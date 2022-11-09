@@ -112,11 +112,25 @@ void cache_display(cache_t *cache)
 {
     if (cache == NULL)
     {
-        printf("Cache is NULL\r\n");
+        printf("Cache is NULL\r\n\r\n");
         return;
     }
+
     printf("URL : %s\r\n", cache->url);
     printf("filesize : %d\r\n", cache->filesize);
     printf("Next : %p\r\n", cache->next);
     printf("Prev : %p\r\n\r\n", cache->prev);
+}
+
+void cache_all_display(cache_header *ch)
+{
+    cache_t *cur_cache = ch->head;
+
+    while (cur_cache != NULL)
+    {
+        cache_display(cur_cache);
+        cur_cache = cur_cache->next;
+    }
+
+    printf("Total Cache Size : %d / %d\r\n\r\n", ch->current_cache_size, MAX_CACHE_SIZE);
 }

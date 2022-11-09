@@ -79,14 +79,10 @@ void proxy(int fd)
   Rio_readinitb(&rio_p_c, fd);
   Rio_readlineb(&rio_p_c, buf, MAXLINE);
   printf("=====Recieve request from Client=====\r\n\r\n");
-
-  printf("***Request headers from Client:\r\n");
-  printf("%s", buf);
   sscanf(buf, "%s %s %s", method, url, version);
   strcpy(origin_url, url);
 
-  cache = cache_search(ch, origin_url);
-  if (cache != NULL)
+  if ((cache = cache_search(ch, origin_url)) != NULL)
   {
     printf("=====Proxy has Cache=====\r\n");
     Rio_writen(fd, cache->response_header, strlen(cache->response_header));
@@ -95,6 +91,9 @@ void proxy(int fd)
 
     return;
   }
+
+  printf("***Request headers from Client:\r\n");
+  printf("%s", buf);
 
   parse_url(url, hostname, uri, ip, port);
   make_request_header(fd, &rio_p_c, hostname, uri, headers);
@@ -123,8 +122,9 @@ void proxy(int fd)
   if ((cache = cache_search(ch, origin_url)) == NULL)
   {
     cache_append(ch, origin_url, response_headers, srcp, filesize);
-    cache_display(ch->head);
     printf("=====Save Response to Cache=====\r\n\r\n");
+    printf("***Saved Cache:\r\n");
+    cache_all_display(ch);
   }
 
   Rio_writen(fd, response_headers, strlen(response_headers));
