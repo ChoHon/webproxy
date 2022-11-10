@@ -1,5 +1,6 @@
 #include "sbuf.h"
 
+// 공유 버퍼 초기화
 void sbuf_init(sbuf_t *sp, int n)
 {
     sp->buf = Calloc(n, sizeof(int)); // 버퍼 할당
@@ -10,11 +11,14 @@ void sbuf_init(sbuf_t *sp, int n)
     Sem_init(&sp->items, 0, 0);       // item 세마포어
 }
 
+// 공유 버퍼 할당 해제
 void sbuf_deinit(sbuf_t *sp)
 {
     Free(sp->buf);
 }
 
+// 공유 버퍼에 item 삽입
+// 세마포어로 쓰레드 안전함
 void sbuf_insert(sbuf_t *sp, int item)
 {
     P(&sp->slots); // 빈칸 하나 줄어들고
@@ -26,6 +30,8 @@ void sbuf_insert(sbuf_t *sp, int item)
     V(&sp->items); // 아이템 하나 증가
 }
 
+// 공유 버퍼에 item 하나 뺴기
+// 세마포어로 쓰레드 안전함
 int sbuf_remove(sbuf_t *sp)
 {
     int item;

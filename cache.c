@@ -1,6 +1,7 @@
 #include <semaphore.h>
 #include "cache.h"
 
+// 캐시 리스트 초기화
 cache_header *cache_init()
 {
     cache_header *ch;
@@ -15,8 +16,10 @@ cache_header *cache_init()
     return ch;
 }
 
+// 캐시 리스트 가장 앞에 캐시 data 추가
 int cache_append(cache_header *ch, char *url, char *response_header, char *response_body, int filesize)
 {
+    // body 크기가 MAX_OBJECT_SIZE보다 크면 return
     if (filesize > MAX_OBJECT_SIZE)
     {
         printf("=====Response Body is bigger than MAX_OBJECT_SIZE=====\r\n\r\n");
@@ -33,6 +36,8 @@ int cache_append(cache_header *ch, char *url, char *response_header, char *respo
     new_cache->prev = NULL;
     new_cache->next = NULL;
 
+    // 캐시 리스트 읽는 연산 -> reader lock
+    // 현재 캐시 리스트에 빈공간이 부족할 경우 LRU data를 삭제해서 공간 확보
     P(&ch->mutex);
     ch->readcnt++;
     if (ch->readcnt == 1)
@@ -48,6 +53,8 @@ int cache_append(cache_header *ch, char *url, char *response_header, char *respo
         V(&ch->w);
     V(&ch->mutex);
 
+    // 캐시 리스트 쓰는 연산 -> writer lock
+    // 캐시 리스트 가장 앞에 data 추가
     P(&ch->w);
     if (ch->head != NULL)
     {
@@ -62,11 +69,14 @@ int cache_append(cache_header *ch, char *url, char *response_header, char *respo
     return 1;
 }
 
+// 캐시 리스트의 마지막 data 삭제
 void cache_delete_LRU(cache_header *ch)
 {
     cache_t *lru_cache = ch->head;
     cache_t *prev_cache = NULL;
 
+    // 캐시 리스트 읽는 연산 -> reader lock
+    // LRU data = 마지막 data 검색
     P(&ch->mutex);
     ch->readcnt++;
     if (ch->readcnt == 1)
@@ -88,6 +98,8 @@ void cache_delete_LRU(cache_header *ch)
         V(&ch->w);
     V(&ch->mutex);
 
+    // 캐시 리스트 쓰는 연산 -> writer lock
+    // 검색한 data 삭제
     P(&ch->w);
     if (prev_cache == NULL)
         ch->head = NULL;
@@ -105,6 +117,8 @@ cache_t *cache_search(cache_header *ch, char *url)
     cache_t *cur_cache = ch->head;
     cache_t *temp;
 
+    // 여기에 reader lock을 해줘야 하는데 오류남
+    // 오류 수정하지 못함
     while (cur_cache != NULL)
     {
         if (!strcmp(cur_cache->url, url))
@@ -116,6 +130,8 @@ cache_t *cache_search(cache_header *ch, char *url)
     if (cur_cache == NULL)
         return NULL;
 
+    // 캐시 리스트 쓰는 연산 -> writer lock
+    // 최근에 참조된 캐시 data를 리스트 가장 앞으로 이동
     P(&ch->w);
     cache_move_to_head(ch, cur_cache);
     V(&ch->w);
@@ -143,6 +159,7 @@ void cache_move_to_head(cache_header *ch, cache_t *cache)
     }
 }
 
+// 캐시 data 하나 출력
 void cache_display(cache_t *cache)
 {
     if (cache == NULL)
@@ -157,6 +174,7 @@ void cache_display(cache_t *cache)
     printf("Prev : %p\r\n\r\n", cache->prev);
 }
 
+// 캐시 리스트 출력
 void cache_all_display(cache_header *ch)
 {
     cache_t *cur_cache = ch->head;
